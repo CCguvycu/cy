@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python · Cybersecurity · Projects</title>
+  <!--
+    Security: Frontend-only hardening. No backend; auth, server-side validation, and
+    database security are intentionally not implemented here. Set HTTP security headers
+    (X-Content-Type-Options, X-Frame-Options, Permissions-Policy) on the server when possible.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self';">
+  <!-- data: in default-src and img-src for favicon (inline SVG). style-src 'unsafe-inline' required: single-file site uses one embedded <style> block. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d1117'/%3E%3Cpath d='M16 5 L25 10 L25 16 Q25 24 16 27 Q7 24 7 16 L7 10 Z' fill='none' stroke='%2358a6ff' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='14' r='4' fill='none' stroke='%2358a6ff' stroke-width='1.5'/%3E%3Crect x='14' y='12' width='4' height='5' rx='1' fill='none' stroke='%2358a6ff' stroke-width='1.5'/%3E%3C/svg%3E" type="image/svg+xml">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- X-Content-Type-Options, X-Frame-Options, Permissions-Policy: set by server (not available as meta). -->
+  <style>
+    /* ---- Design: dark, modern, developer-style ---- */
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --orange: #d29922;
+      --red: #f85149;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: ui-monospace, 'Consolas', 'Monaco', monospace;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem; }
+    /* ---- Nav ---- */
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem; }
+    header h1 { font-size: 1.35rem; font-weight: 600; color: var(--text); }
+    header .tagline { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin-top: 1rem;
+      align-items: center;
+    }
+    nav a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.2em 0;
+      transition: color 0.15s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* ---- Sections ---- */
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.15rem;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--text); }
+    p { color: var(--text-muted); margin-bottom: 0.75rem; font-size: 0.95rem; }
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(88, 166, 255, 0.3); }
+    code { background: var(--bg2); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: 1px solid var(--border); }
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; border: none; }
+    .tip { border-left: 3px solid var(--green); padding-left: 1rem; margin: 0.75rem 0; color: var(--text-muted); }
+    .warn { border-left: 3px solid var(--orange); padding-left: 1rem; margin: 0.75rem 0; color: var(--text-muted); }
+    /* ---- News (static placeholder) ---- */
+    .news-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .news-card .severity { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2em 0.5em; border-radius: 4px; }
+    .sev-critical { background: #3d1f1f; color: var(--red); }
+    .sev-high { background: #2d2319; color: var(--orange); }
+    .sev-medium { background: #1f2d3d; color: var(--accent); }
+    .sev-low { color: var(--text-muted); }
+    .news-card .summary { font-size: 0.9rem; }
+    .news-card .why { font-size: 0.85rem; color: var(--text); }
+    /* ---- Projects ---- */
+    .project-type { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; padding: 0.2em 0.5em; border-radius: 4px; margin-bottom: 0.5rem; display: inline-block; }
+    .project-type.lens { background: #1f2d3d; color: var(--accent); }
+    .project-type.code { background: #1f3d2d; color: var(--green); }
+    .project-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin-bottom: 1rem; }
+    .project-card ul { margin: 0.5rem 0 0 1rem; color: var(--text-muted); font-size: 0.9rem; }
+    /* ---- Images: fit inside fixed-aspect boxes ---- */
+    .hero-img-box { width: 100%; aspect-ratio: 16/9; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem; overflow: hidden; background: var(--bg2); }
+    .hero-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .section-img-box { width: 100%; max-width: 560px; aspect-ratio: 4/3; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; overflow: hidden; background: var(--bg2); }
+    .section-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* ---- Footer ---- */
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    /* ---- Utility: reduce inline style surface (layout) ---- */
+    .list-indent { margin-left: 1.25rem; margin-bottom: 1rem; }
+    .mt-15 { margin-top: 1.5rem; }
+    .mb-1 { margin-bottom: 1rem; }
+    .fs-09 { font-size: 0.9rem; }
+    /* ---- Responsive ---- */
+    @media (max-width: 600px) { .wrap { padding: 1rem 0.75rem; } nav { gap: 0.5rem 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Python · Cybersecurity · Projects</h1>
+      <p class="tagline">Practical Python, security awareness, and real work. No hype.</p>
+      <nav>
+        <a href="#home">Home</a>
+        <a href="#learn-python">Learn Python</a>
+        <a href="#cybersecurity">Cybersecurity</a>
+        <a href="#projects">Projects</a>
+        <a href="#about">About</a>
+        <a href="#security">Security</a>
+      </nav>
+    </header>
+
+    <div class="hero-img-box"><img src="assets/hero-python-cyber-16x9.png" alt="Python and cybersecurity environment" loading="lazy"></div>
+
+    <section id="home">
+      <h2>Home</h2>
+      <p>Independent developer focused on Python, automation, and security-aware systems. I build tools, ship projects, and learn by doing.</p>
+      <p>This site offers:</p>
+      <ul class="list-indent" style="color: var(--text-muted);">
+        <li><strong style="color: var(--text);">Python skills</strong> — fundamentals, automation, scripting, and a problem-solving mindset.</li>
+        <li><strong style="color: var(--text);">Cybersecurity awareness</strong> — high-level concepts and a curated news section (static) so you stay informed without fear-mongering.</li>
+        <li><strong style="color: var(--text);">Real projects</strong> — Snapchat Lenses and Python-based tools I’ve built and published.</li>
+      </ul>
+      <p>Clear, direct, and practical. No marketing fluff.</p>
+    </section>
+
+    <section id="learn-python">
+      <h2>Learn Python</h2>
+      <div class="section-img-box"><img src="assets/section-python-terminal-4x3.png" alt="Python terminal and automation" loading="lazy"></div>
+      <p>Practical guidance: fundamentals, automation, scripting, and how to think in terms of problems and systems. Not copied tutorials.</p>
+
+      <div class="card">
+        <h3>Readability and structure</h3>
+        <p>Use clear names, small functions, and type hints where they help. Avoid magic numbers and deep nesting. Return early to reduce complexity.</p>
+        <pre><code># Prefer
+def is_valid_user(user_id: int, min_age: int = 18) -> bool:
+    return get_user(user_id).age >= min_age
+
+# Avoid
+def check(u):
+    return get_user(u).age >= 18</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Data structures</h3>
+        <p>Lists for ordered sequences, dicts for key-value, sets for uniqueness. Use <code>defaultdict</code> or <code>Counter</code> when they fit.</p>
+        <pre><code>from collections import Counter
+counts = Counter(line.split()[0] for line in log_lines)  # e.g. IP counts</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Functions</h3>
+        <p>Single responsibility. Keyword-only args for clarity. Use <code>secrets</code> for tokens and passwords, not <code>random</code>.</p>
+        <pre><code>import secrets
+token = secrets.token_urlsafe(32)</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Common mistakes</h3>
+        <div class="warn"><strong>Mutable default:</strong> <code>def f(x=[]):</code> reuses the same list. Use <code>def f(x=None): x = x or []</code>.</div>
+        <div class="warn"><strong>SQL:</strong> Never build SQL with f-strings. Use parameterized queries.</div>
+        <div class="tip"><strong>Secrets:</strong> Use <code>secrets</code> for anything security-sensitive; <code>random</code> is not cryptographically secure.</div>
+      </div>
+    </section>
+
+    <section id="cybersecurity">
+      <h2>Cybersecurity Awareness</h2>
+      <div class="section-img-box"><img src="assets/section-cybersecurity-network-4x3.png" alt="Network and security analysis" loading="lazy"></div>
+      <p>High-level concepts so you can reason about threats and defenses. Focus on understanding, not fear. Below is static placeholder news — no live API.</p>
+
+      <div class="card">
+        <h3>Concepts that matter</h3>
+        <p><strong>Input validation:</strong> Validate and sanitize all input. Assume untrusted data until proven otherwise.</p>
+        <p><strong>Least privilege:</strong> Run with the minimum permissions needed. Same for users and services.</p>
+        <p><strong>Defense in depth:</strong> Don’t rely on one control. Use multiple layers (headers, auth, validation, logging).</p>
+      </div>
+
+      <h3 class="mt-15">Cybersecurity news (static placeholder)</h3>
+      <p class="mb-1">Sample items to show format. Replace with real content or a feed when you have one.</p>
+
+      <article class="news-card">
+        <span class="severity sev-high">High</span>
+        <h3>Supply chain attack via typosquatted PyPI packages</h3>
+        <p class="summary">Malicious packages with names similar to popular ones were uploaded to PyPI. Install scripts ran unwanted code or exfiltrated environment variables.</p>
+        <p class="why"><strong>Why it matters:</strong> Use trusted sources, audit dependencies, and prefer packages with a clear maintenance history.</p>
+      </article>
+      <article class="news-card">
+        <span class="severity sev-medium">Medium</span>
+        <h3>Phishing campaign targets developer credentials</h3>
+        <p class="summary">Fake CI/CD and Git hosting login pages used to steal tokens and passwords. Emails impersonate known platforms.</p>
+        <p class="why"><strong>Why it matters:</strong> Use SSO/2FA, short-lived tokens, and verify URLs before entering credentials.</p>
+      </article>
+      <article class="news-card">
+        <span class="severity sev-low">Low</span>
+        <h3>Security headers missing on many APIs</h3>
+        <p class="summary">Widespread omission of CSP, HSTS, and X-Frame-Options on public APIs increases XSS and clickjacking surface.</p>
+        <p class="why"><strong>Why it matters:</strong> Add security headers in your API or gateway. Use a checklist for every new endpoint.</p>
+      </article>
+    </section>
+
+    <section id="projects">
+      <h2>Projects / What I’ve Built</h2>
+      <div class="section-img-box"><img src="assets/section-projects-workspace-4x3.png" alt="Developer workspace" loading="lazy"></div>
+      <p>Short intro: I’m an independent developer and practitioner. I build and ship real things — Snapchat Lenses and Python tools — and learn by experimenting under real constraints. No fake metrics or hype.</p>
+
+      <h3 class="mt-15">Snapchat Lens projects</h3>
+      <div class="section-img-box"><img src="assets/section-snapchat-lens-wireframe-4x3.png" alt="AR face-tracking wireframe" loading="lazy"></div>
+      <p>Built and published custom Snapchat filters. Used face tracking, interaction logic, and real-time effects. Shipped to a public platform.</p>
+
+      <div class="project-card">
+        <span class="project-type lens">Snapchat Lens</span>
+        <h3>Lens name</h3>
+        <p><strong>What it does:</strong> Face tracking and real-time visual effects that respond to user input. (Replace with your actual Lens description.)</p>
+        <p><strong>Tech used:</strong> Snap Lens Studio, face mesh / tracking APIs, event-driven logic. Worked within mobile performance constraints.</p>
+        <p><strong>Skills learned:</strong> Real-time systems thinking, user interaction design, state management under latency, shipping to a public platform.</p>
+      </div>
+      <p class="fs-09">Add more Lens cards here. For each: what it does, tech used, skills learned.</p>
+
+      <h3 class="mt-15">Code projects</h3>
+      <p>Python-based tools and systems. Focus on automation, security-aware design, and experimentation.</p>
+
+      <div class="project-card">
+        <span class="project-type code">Python</span>
+        <h3>Project name</h3>
+        <p><strong>What it does:</strong> Automates a task, analyzes data, or enforces a rule. (Replace with your actual project.)</p>
+        <p><strong>Tech used:</strong> Python, standard library (e.g. pathlib, logging, asyncio). Simple web backends where relevant.</p>
+        <p><strong>Skills learned:</strong> Maintainable Python, structuring logic, debugging and refactoring, thinking in systems rather than one-off scripts.</p>
+      </div>
+      <p class="fs-09">Add more project cards. Same format: what it does, tech used, skills learned. Factual and confident.</p>
+    </section>
+
+    <section id="about">
+      <h2>About</h2>
+      <p>Brief background: I’m an independent developer. I focus on building, learning, and shipping. I prefer practical tools over demos and theory over hype.</p>
+      <p>I work on Python, automation, and security-aware systems. I’ve built and published Snapchat Lenses and various Python tools. I learn by doing and iterating on real projects.</p>
+      <p>This site reflects that: direct guidance, real work, and a clear view of what I’ve built and how I think.</p>
+    </section>
+
+    <!-- Security: frontend-only. No forms = no client-side form validation; add validation and server-side checks when forms exist. -->
+    <!-- Intentionally not implemented: authentication, server-side input validation, CSRF, rate limiting, secure cookies, database security. -->
+    <section id="security">
+      <h2>Security</h2>
+      <p>This section explains the security posture of this site and what is in scope for a frontend-only, static page.</p>
+
+      <div class="card">
+        <h3>Threat modeling (basics)</h3>
+        <p><strong>Assets:</strong> Static content, no user data. No login, no backend, no database.</p>
+        <p><strong>Threats in scope:</strong> XSS (mitigated by no user-controlled DOM injection and CSP), clickjacking (CSP <code>frame-ancestors 'none'</code>), MIME sniffing (server should send <code>X-Content-Type-Options: nosniff</code>), referrer leakage (meta Referrer-Policy).</p>
+        <p><strong>Out of scope here:</strong> Server compromise, authentication, authorization, injection into a backend, database access, session handling. Those belong on the server and are not implemented in this file.</p>
+      </div>
+
+      <div class="card">
+        <h3>Why frontend security still matters</h3>
+        <p>Even without a backend, a page can be embedded in a hostile site (clickjacking), or a compromised CDN could inject scripts. CSP and strict defaults reduce the impact of injection and prevent embedding. Referrer policy limits what third-party sites learn when users follow links. These are defensive defaults.</p>
+      </div>
+
+      <div class="card">
+        <h3>What this page does</h3>
+        <ul class="list-indent" style="color: var(--text-muted);">
+          <li><strong>Content-Security-Policy (meta):</strong> <code>default-src 'self'</code>; scripts and resources from same origin only. <code>style-src 'unsafe-inline'</code> only because this is a single file with one embedded stylesheet. <code>frame-ancestors 'none'</code> to block embedding. <code>base-uri 'self'</code> to prevent base-tag injection.</li>
+          <li><strong>Referrer-Policy (meta):</strong> <code>strict-origin-when-cross-origin</code> so full URL is not sent to other origins.</li>
+          <li><strong>No inline scripts:</strong> No <code>eval</code>, no dynamic script injection. No JavaScript at all on this page; any future script would require justification and must avoid eval and innerHTML with unsanitized data.</li>
+          <li><strong>No external scripts, trackers, or analytics:</strong> Zero third-party JS or tracking.</li>
+          <li><strong>External links:</strong> One outbound link (Snapchat) with <code>rel="noopener noreferrer"</code> to avoid tab-napping and limit referrer.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Server responsibilities (not in this file)</h3>
+        <p>When you serve this HTML over HTTP(S), the server should send: <code>X-Content-Type-Options: nosniff</code>, <code>X-Frame-Options: DENY</code> (or rely on CSP frame-ancestors), <code>Permissions-Policy</code> to disable unneeded features, and <code>Strict-Transport-Security</code> if using HTTPS. This file cannot set those; configure the web server or reverse proxy.</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>Python · Cybersecurity · Projects. No ads, no paywalls, no trackers. Built as a single-file site.</p>
+      <p>© Cameron · <a href="https://www.snapchat.com/@camerondev2026" target="_blank" rel="noopener noreferrer">Snapchat @camerondev2026</a></p>
+    </footer>
+  </div>
+</body>
+</html>
