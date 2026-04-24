@@ -220,7 +220,11 @@ async function main() {
   process.exit(rep.valid_syntax ? 0 : 1);
 }
 
-main().catch((e) => {
-  console.error(e.stack || e.message);
-  process.exit(2);
-});
+module.exports = { inspect, renderText, FREE_PROVIDERS, DISPOSABLE_PROVIDERS };
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e.stack || e.message);
+    process.exit(2);
+  });
+}
