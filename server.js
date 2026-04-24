@@ -77,7 +77,11 @@ const server = http.createServer(async (req, res) => {
       const report = await inspect(email, { doSmtp: smtp, sender });
       return sendJson(res, 200, report);
     } catch (e) {
-      return sendJson(res, 500, { error: e.message || String(e) });
+      const code = e.code || '';
+      const hint = ['ECONNREFUSED', 'ESERVFAIL', 'ETIMEOUT'].includes(code)
+        ? ' (DNS unreachable; try DNS_SERVERS=1.1.1.1,8.8.8.8 npm start)'
+        : '';
+      return sendJson(res, 500, { error: (e.message || String(e)) + hint });
     }
   }
 

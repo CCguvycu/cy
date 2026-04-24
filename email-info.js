@@ -28,14 +28,38 @@ const DISPOSABLE_PROVIDERS = new Set([
   'emailondeck.com', 'burnermail.io', 'tempr.email', 'inboxbear.com',
 ]);
 
+const PUBLIC_DNS = (process.env.DNS_SERVERS || '1.1.1.1,8.8.8.8')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+
+let _fallbackApplied = false;
+if (process.env.DNS_SERVERS) {
+  dns.setServers(PUBLIC_DNS);
+  _fallbackApplied = true;
+}
+
+const NOT_FOUND = new Set(['ENOTFOUND', 'ENODATA', 'SERVFAIL', 'NXDOMAIN']);
+const UNREACHABLE = new Set(['ECONNREFUSED', 'ESERVFAIL', 'ETIMEOUT', 'ECANCELLED', 'EREFUSED']);
+
+async function resolveOnce(name, type) {
+  if (type === 'MX') return dns.resolveMx(name);
+  if (type === 'TXT') return (await dns.resolveTxt(name)).map((c) => c.join(''));
+  if (type === 'A') return dns.resolve4(name);
+  return [];
+}
+
 async function safeResolve(name, type) {
-  try {
-    if (type === 'MX') return await dns.resolveMx(name);
-    if (type === 'TXT') return (await dns.resolveTxt(name)).map((c) => c.join(''));
-    if (type === 'A') return await dns.resolve4(name);
-  } catch (e) {
-    if (['ENOTFOUND', 'ENODATA', 'SERVFAIL', 'NXDOMAIN'].includes(e.code)) return [];
-    throw e;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await resolveOnce(name, type);
+    } catch (e) {
+      if (NOT_FOUND.has(e.code)) return [];
+      if (!_fallbackApplied && UNREACHABLE.has(e.code)) {
+        dns.setServers(PUBLIC_DNS);
+        _fallbackApplied = true;
+        continue;
+      }
+      throw e;
+    }
   }
   return [];
 }
