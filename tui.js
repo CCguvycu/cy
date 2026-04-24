@@ -183,32 +183,82 @@ async function handleLine(line, state, rl) {
   }
 }
 
+function drawChrome(state) {
+  const rows = process.stdout.rows || 24;
+  const cols = process.stdout.columns || 80;
+  const pad = (s, w) => (s + ' '.repeat(w)).slice(0, w);
+
+  const title = ` email-info · interactive recon `;
+  const mode = ` smtp=${state.smtp ? 'on ' : 'off'}  json=${state.jsonOnce ? 'next' : 'off '} `;
+  const titleBar = pad(title + ' '.repeat(Math.max(0, cols - title.length - mode.length)) + mode, cols);
+
+  const shortcuts = ' type an email  ·  .smtp on|off  ·  .json  ·  .clear  ·  .help  ·  Ctrl-D to quit ';
+  const statusBar = pad(shortcuts, cols);
+
+  const inv = useColor ? '\x1b[7m' : '';
+  const rst = useColor ? '\x1b[0m' : '';
+
+  process.stdout.write(`\x1b[s`);
+  process.stdout.write(`\x1b[1;1H${inv}${titleBar}${rst}`);
+  process.stdout.write(`\x1b[${rows};1H${inv}${statusBar}${rst}`);
+  process.stdout.write(`\x1b[2;${rows - 1}r`);
+  process.stdout.write(`\x1b[u`);
+}
+
+function enterFullscreen(state) {
+  process.stdout.write('\x1b[?1049h\x1b[H\x1b[2J');
+  drawChrome(state);
+  process.stdout.write(`\x1b[2;1H`);
+}
+
+function leaveFullscreen() {
+  process.stdout.write('\x1b[r');
+  process.stdout.write('\x1b[?1049l');
+}
+
 function runTui() {
   const state = { smtp: false, jsonOnce: false };
+  const fullscreen = process.stdout.isTTY && !process.env.EMAIL_INFO_SIMPLE_TUI;
+
+  if (fullscreen) enterFullscreen(state);
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: useColor ? `\x1b[35memail-info›\x1b[0m ` : 'email-info> ',
+    prompt: useColor ? `\x1b[35m›\x1b[0m ` : '> ',
   });
 
-  printBanner(state);
+  if (!fullscreen) printBanner(state);
   rl.prompt();
+
+  const onResize = () => { if (fullscreen) drawChrome(state); };
+  process.stdout.on('resize', onResize);
 
   let queue = Promise.resolve();
   let closed = false;
   rl.on('line', (line) => {
     queue = queue
       .then(() => handleLine(line, state, rl))
+      .then(() => { if (fullscreen) drawChrome(state); })
       .then(() => { if (!closed) rl.prompt(); });
   });
+
+  const cleanup = () => {
+    process.stdout.off('resize', onResize);
+    if (fullscreen) leaveFullscreen();
+  };
 
   rl.on('close', () => {
     closed = true;
     queue.then(() => {
-      process.stdout.write(dim('\nbye\n'));
+      cleanup();
+      process.stdout.write(dim('bye\n'));
       process.exit(0);
     });
   });
+
+  process.on('SIGINT', () => { cleanup(); process.exit(130); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 }
 
 module.exports = { runTui, renderColored };
