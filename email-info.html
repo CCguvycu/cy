@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>email-info · recon UI</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.gravatar.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --orange: #d29922;
+      --red: #f85149;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-monospace, 'Consolas', 'Monaco', monospace;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    header p { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+    input[type="email"] {
+      flex: 1 1 260px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.55rem 0.75rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    input[type="email"]:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    button {
+      background: var(--accent);
+      color: #0b1a2b;
+      border: 0;
+      padding: 0.55rem 1rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    label.check { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-muted); font-size: 0.85rem; }
+    .status { color: var(--text-muted); font-size: 0.85rem; min-height: 1.2em; margin-bottom: 0.75rem; }
+    .error { color: var(--red); }
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+    .row { display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem 1rem; padding: 0.25rem 0; border-bottom: 1px dashed transparent; font-size: 0.9rem; }
+    .row + .row { border-top: 1px dashed var(--border); }
+    .k { color: var(--text-muted); }
+    .v { word-break: break-word; white-space: pre-wrap; }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+    }
+    .ok { color: var(--green); border-color: var(--green); }
+    .warn { color: var(--orange); border-color: var(--orange); }
+    .bad { color: var(--red); border-color: var(--red); }
+    ul.list { list-style: none; margin: 0; padding: 0; }
+    ul.list li { font-size: 0.88rem; padding: 0.1rem 0; }
+    a { color: var(--accent); }
+    pre.raw {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.8rem;
+      overflow: auto;
+      max-height: 260px;
+    }
+    details { margin-top: 0.5rem; }
+    summary { cursor: pointer; color: var(--text-muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>email-info</h1>
+      <p>Recon info about an email address &mdash; authorized testing only.</p>
+    </header>
+
+    <form id="f">
+      <input id="email" name="email" type="email" placeholder="user@example.com" required autocomplete="off" autofocus>
+      <label class="check" title="Intrusive RCPT-TO probe against the top MX">
+        <input type="checkbox" id="smtp"> SMTP probe
+      </label>
+      <button type="submit" id="go">Inspect</button>
+    </form>
+    <div class="status" id="status"></div>
+
+    <section id="out"></section>
+  </div>
+
+  <script>
+    const form = document.getElementById('f');
+    const emailIn = document.getElementById('email');
+    const smtpIn = document.getElementById('smtp');
+    const goBtn = document.getElementById('go');
+    const statusEl = document.getElementById('status');
+    const out = document.getElementById('out');
+
+    function badge(text, cls) {
+      const s = document.createElement('span');
+      s.className = 'badge ' + cls;
+      s.textContent = text;
+      return s;
+    }
+
+    function card(title) {
+      const c = document.createElement('div');
+      c.className = 'card';
+      const h = document.createElement('h2');
+      h.textContent = title;
+      c.appendChild(h);
+      return c;
+    }
+
+    function row(k, v) {
+      const r = document.createElement('div');
+      r.className = 'row';
+      const kEl = document.createElement('div');
+      kEl.className = 'k';
+      kEl.textContent = k;
+      const vEl = document.createElement('div');
+      vEl.className = 'v';
+      if (v instanceof Node) vEl.appendChild(v);
+      else vEl.textContent = v;
+      r.appendChild(kEl);
+      r.appendChild(vEl);
+      return r;
+    }
+
+    function render(report) {
+      out.innerHTML = '';
+
+      const summary = card('Summary');
+      summary.appendChild(row('email', report.email));
+      const synEl = document.createElement('span');
+      synEl.appendChild(badge(report.valid_syntax ? 'valid' : 'invalid', report.valid_syntax ? 'ok' : 'bad'));
+      summary.appendChild(row('syntax', synEl));
+
+      if (!report.valid_syntax) {
+        if (report.errors && report.errors.length) {
+          summary.appendChild(row('errors', report.errors.join('\n')));
+        }
+        out.appendChild(summary);
+        return;
+      }
+
+      summary.appendChild(row('local', report.local));
+      summary.appendChild(row('domain', report.domain));
+
+      const flags = document.createElement('span');
+      flags.appendChild(badge(report.is_free_provider ? 'free provider' : 'custom domain', report.is_free_provider ? 'warn' : 'ok'));
+      flags.appendChild(document.createTextNode(' '));
+      flags.appendChild(badge(report.is_disposable ? 'disposable' : 'not disposable', report.is_disposable ? 'bad' : 'ok'));
+      flags.appendChild(document.createTextNode(' '));
+      flags.appendChild(badge(report.is_role_account ? 'role account' : 'personal', report.is_role_account ? 'warn' : 'ok'));
+      summary.appendChild(row('flags', flags));
+
+      const gravWrap = document.createElement('span');
+      const gravLink = document.createElement('a');
+      gravLink.href = report.gravatar_url;
+      gravLink.target = '_blank';
+      gravLink.rel = 'noopener noreferrer';
+      gravLink.textContent = 'probe';
+      gravWrap.appendChild(gravLink);
+      gravWrap.appendChild(document.createTextNode('  '));
+      if (report.gravatar_exists === true) gravWrap.appendChild(badge('has avatar', 'ok'));
+      else if (report.gravatar_exists === false) gravWrap.appendChild(badge('no avatar', 'warn'));
+      else gravWrap.appendChild(badge('unknown', 'warn'));
+      summary.appendChild(row('gravatar', gravWrap));
+      out.appendChild(summary);
+
+      const dns = card('DNS');
+      const mxList = document.createElement('ul');
+      mxList.className = 'list';
+      if (report.mx_records.length === 0) {
+        mxList.appendChild(Object.assign(document.createElement('li'), { textContent: '(none)' }));
+      } else {
+        for (const m of report.mx_records) {
+          const li = document.createElement('li');
+          li.textContent = m;
+          mxList.appendChild(li);
+        }
+      }
+      dns.appendChild(row('MX', mxList));
+      dns.appendChild(row('A', report.a_records.join(', ') || '(none)'));
+      if (report.aaaa_records && report.aaaa_records.length) {
+        dns.appendChild(row('AAAA', report.aaaa_records.join(', ')));
+      }
+      if (report.ns_records && report.ns_records.length) {
+        dns.appendChild(row('NS', report.ns_records.join(', ')));
+      }
+      out.appendChild(dns);
+
+      const auth = card('Email authentication');
+      const spfWrap = document.createElement('span');
+      spfWrap.appendChild(report.spf ? badge('present', 'ok') : badge('missing', 'warn'));
+      if (report.spf_summary && report.spf_summary.qualifier) {
+        spfWrap.appendChild(document.createTextNode(' '));
+        const q = report.spf_summary.qualifier;
+        const cls = q === '-all' ? 'ok' : (q === '~all' ? 'warn' : 'bad');
+        spfWrap.appendChild(badge(q, cls));
+      }
+      if (report.spf) { spfWrap.appendChild(document.createElement('br')); spfWrap.appendChild(document.createTextNode(report.spf)); }
+      auth.appendChild(row('SPF', spfWrap));
+
+      const dmarcWrap = document.createElement('span');
+      dmarcWrap.appendChild(report.dmarc ? badge('present', 'ok') : badge('missing', 'warn'));
+      if (report.dmarc_summary && report.dmarc_summary.p) {
+        dmarcWrap.appendChild(document.createTextNode(' '));
+        const p = report.dmarc_summary.p;
+        const cls = p === 'reject' ? 'ok' : (p === 'quarantine' ? 'warn' : 'bad');
+        dmarcWrap.appendChild(badge('p=' + p, cls));
+      }
+      if (report.dmarc) { dmarcWrap.appendChild(document.createElement('br')); dmarcWrap.appendChild(document.createTextNode(report.dmarc)); }
+      auth.appendChild(row('DMARC', dmarcWrap));
+
+      const bimiWrap = document.createElement('span');
+      bimiWrap.appendChild(report.bimi ? badge('present', 'ok') : badge('none', 'warn'));
+      if (report.bimi) { bimiWrap.appendChild(document.createTextNode('  ' + report.bimi)); }
+      auth.appendChild(row('BIMI', bimiWrap));
+
+      auth.appendChild(row('MTA-STS', report.mta_sts ? badge('advertised', 'ok') : badge('none', 'warn')));
+      out.appendChild(auth);
+
+      if (report.dkim_selectors && report.dkim_selectors.length) {
+        const dkim = card('DKIM selectors');
+        const ul = document.createElement('ul');
+        ul.className = 'list';
+        for (const s of report.dkim_selectors) {
+          const li = document.createElement('li');
+          li.textContent = `${s.selector}._domainkey  ${s.record.slice(0, 140)}${s.record.length > 140 ? '…' : ''}`;
+          ul.appendChild(li);
+        }
+        dkim.appendChild(ul);
+        out.appendChild(dkim);
+      }
+
+      if (report.smtp_check) {
+        const s = card('SMTP probe');
+        const sc = report.smtp_check;
+        if (sc.error) s.appendChild(row('error', sc.error));
+        if (sc.mx) s.appendChild(row('mx', sc.mx));
+        if (sc.banner) s.appendChild(row('banner', sc.banner));
+        s.appendChild(row('starttls', sc.starttls === null ? '(unknown)' : String(sc.starttls)));
+        if (sc.target) s.appendChild(row('target RCPT', `${sc.target.code}  deliverable=${sc.target.deliverable}  ${sc.target.message}`));
+        if (sc.random_probe) s.appendChild(row('random RCPT', `${sc.random_probe.code}  deliverable=${sc.random_probe.deliverable}  ${sc.random_probe.message}`));
+        const caWrap = document.createElement('span');
+        if (sc.catch_all === true) caWrap.appendChild(badge('catch-all', 'warn'));
+        else if (sc.catch_all === false) caWrap.appendChild(badge('not catch-all', 'ok'));
+        else caWrap.appendChild(badge('unknown', 'warn'));
+        s.appendChild(row('catch-all', caWrap));
+        out.appendChild(s);
+      }
+
+      const rawCard = card('Raw JSON');
+      const det = document.createElement('details');
+      const sum = document.createElement('summary');
+      sum.textContent = 'toggle';
+      const pre = document.createElement('pre');
+      pre.className = 'raw';
+      pre.textContent = JSON.stringify(report, null, 2);
+      det.appendChild(sum);
+      det.appendChild(pre);
+      rawCard.appendChild(det);
+      out.appendChild(rawCard);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = emailIn.value.trim();
+      if (!email) return;
+      goBtn.disabled = true;
+      statusEl.className = 'status';
+      statusEl.textContent = 'Looking up...';
+      out.innerHTML = '';
+      try {
+        const u = new URL('/api/inspect', window.location.origin);
+        u.searchParams.set('email', email);
+        if (smtpIn.checked) u.searchParams.set('smtp', '1');
+        const res = await fetch(u, { headers: { Accept: 'application/json' } });
+        const body = await res.json();
+        if (!res.ok) {
+          statusEl.className = 'status error';
+          statusEl.textContent = body.error || ('HTTP ' + res.status);
+          return;
+        }
+        statusEl.textContent = '';
+        render(body);
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = err.message || 'request failed';
+      } finally {
+        goBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
