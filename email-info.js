@@ -6,7 +6,11 @@
 
 const crypto = require('crypto');
 const dns = require('dns').promises;
+const https = require('https');
 const net = require('net');
+
+const DOH_URL = process.env.DOH_URL || 'https://dns.google/resolve';
+const FORCE_DOH = process.env.DOH === '1';
 
 const EMAIL_RE =
   /^(?<local>[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+)@(?<domain>(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})$/;
@@ -31,14 +35,48 @@ const DISPOSABLE_PROVIDERS = new Set([
 const PUBLIC_DNS = (process.env.DNS_SERVERS || '1.1.1.1,8.8.8.8')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
-let _fallbackApplied = false;
+let _udpFallbackApplied = false;
 if (process.env.DNS_SERVERS) {
   dns.setServers(PUBLIC_DNS);
-  _fallbackApplied = true;
+  _udpFallbackApplied = true;
 }
 
 const NOT_FOUND = new Set(['ENOTFOUND', 'ENODATA', 'SERVFAIL', 'NXDOMAIN']);
 const UNREACHABLE = new Set(['ECONNREFUSED', 'ESERVFAIL', 'ETIMEOUT', 'ECANCELLED', 'EREFUSED']);
+
+const DOH_TYPE = { A: 1, MX: 15, TXT: 16 };
+
+function dohQuery(name, type) {
+  return new Promise((resolve, reject) => {
+    const u = `${DOH_URL}?name=${encodeURIComponent(name)}&type=${DOH_TYPE[type]}`;
+    const req = https.get(u, { headers: { Accept: 'application/dns-json' }, timeout: 8000 }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => (body += c));
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(body);
+          if (j.Status === 3) return resolve([]); // NXDOMAIN
+          if (j.Status !== 0 || !Array.isArray(j.Answer)) return resolve([]);
+          const answers = j.Answer.filter((a) => a.type === DOH_TYPE[type]);
+          if (type === 'MX') {
+            return resolve(answers.map((a) => {
+              const [prio, exch] = a.data.split(/\s+/, 2);
+              return { priority: parseInt(prio, 10), exchange: (exch || '').replace(/\.$/, '') };
+            }));
+          }
+          if (type === 'A') return resolve(answers.map((a) => a.data));
+          if (type === 'TXT') {
+            return resolve(answers.map((a) => a.data.replace(/"\s+"/g, '').replace(/^"|"$/g, '')));
+          }
+          resolve([]);
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('DoH timeout')));
+    req.on('error', reject);
+  });
+}
 
 async function resolveOnce(name, type) {
   if (type === 'MX') return dns.resolveMx(name);
@@ -48,15 +86,23 @@ async function resolveOnce(name, type) {
 }
 
 async function safeResolve(name, type) {
+  if (FORCE_DOH) {
+    try { return await dohQuery(name, type); }
+    catch (_) { return []; }
+  }
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       return await resolveOnce(name, type);
     } catch (e) {
       if (NOT_FOUND.has(e.code)) return [];
-      if (!_fallbackApplied && UNREACHABLE.has(e.code)) {
+      if (!_udpFallbackApplied && UNREACHABLE.has(e.code)) {
         dns.setServers(PUBLIC_DNS);
-        _fallbackApplied = true;
+        _udpFallbackApplied = true;
         continue;
+      }
+      if (UNREACHABLE.has(e.code)) {
+        try { return await dohQuery(name, type); }
+        catch (_) { return []; }
       }
       throw e;
     }
