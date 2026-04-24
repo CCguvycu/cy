@@ -3,6 +3,7 @@
 
 'use strict';
 
+const { spawn } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -12,6 +13,21 @@ const { inspect } = require('./email-info.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
+const NO_OPEN = process.env.NO_OPEN === '1' || process.argv.includes('--no-open');
+
+function openBrowser(target) {
+  const platform = process.platform;
+  const cmd =
+    platform === 'darwin' ? 'open'
+    : platform === 'win32' ? 'cmd'
+    : 'xdg-open';
+  const args = platform === 'win32' ? ['/c', 'start', '""', target] : [target];
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+    child.on('error', () => { /* browser unavailable; ignore */ });
+    child.unref();
+  } catch (_) { /* ignore */ }
+}
 
 const UI_PATH = path.join(__dirname, 'email-info.html');
 
@@ -69,5 +85,16 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`email-info UI running at http://${HOST}:${PORT}`);
+  const origin = `http://${HOST}:${PORT}`;
+  console.log(`email-info UI running at ${origin}`);
+  if (!NO_OPEN) openBrowser(origin);
+});
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`port ${PORT} already in use; set PORT=<n> to pick another.`);
+  } else {
+    console.error(e.message);
+  }
+  process.exit(1);
 });
