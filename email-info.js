@@ -415,7 +415,7 @@ function renderText(r) {
 function parseArgs(argv) {
   const opts = {
     email: null, json: false, smtp: false, sender: 'probe@example.com',
-    help: false, serve: false, noOpen: false,
+    help: false, serve: false, tui: false, noOpen: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -423,6 +423,7 @@ function parseArgs(argv) {
     else if (a === '--json') opts.json = true;
     else if (a === '--smtp') opts.smtp = true;
     else if (a === '--serve' || a === '--ui') opts.serve = true;
+    else if (a === '--tui' || a === '-i' || a === '--interactive') opts.tui = true;
     else if (a === '--no-open') opts.noOpen = true;
     else if (a === '--sender') opts.sender = argv[++i];
     else if (a.startsWith('--sender=')) opts.sender = a.slice('--sender='.length);
@@ -437,13 +438,15 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log(`Usage:
-  email-info <email>              inspect a single address (CLI)
+  email-info <email>              inspect a single address (one-shot CLI)
+  email-info --tui                interactive colored terminal REPL
   email-info --serve              launch the web UI on http://127.0.0.1:3000
 
 Options:
   --smtp            probe top MX with banner + RCPT TO + catch-all test
   --sender <addr>   MAIL FROM for the SMTP probe (default: probe@example.com)
   --json            emit JSON instead of text
+  --tui, -i         start the interactive terminal REPL
   --serve, --ui     start the web UI server
   --no-open         don't auto-open the browser in --serve mode
   -h, --help        show this help
@@ -463,6 +466,10 @@ async function main() {
   }
   if (opts.serve) {
     require('./server.js').start({ openInBrowser: !opts.noOpen });
+    return;
+  }
+  if (opts.tui) {
+    require('./tui.js').runTui();
     return;
   }
   if (!opts.email) {
