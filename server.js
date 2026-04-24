@@ -11,9 +11,8 @@ const url = require('url');
 
 const { inspect } = require('./email-info.js');
 
-const PORT = parseInt(process.env.PORT, 10) || 3000;
-const HOST = process.env.HOST || '127.0.0.1';
-const NO_OPEN = process.env.NO_OPEN === '1' || process.argv.includes('--no-open');
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3000;
+const DEFAULT_HOST = process.env.HOST || '127.0.0.1';
 
 function openBrowser(target) {
   const platform = process.platform;
@@ -88,17 +87,26 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { error: 'not found' });
 });
 
-server.listen(PORT, HOST, () => {
-  const origin = `http://${HOST}:${PORT}`;
-  console.log(`email-info UI running at ${origin}`);
-  if (!NO_OPEN) openBrowser(origin);
-});
+function start({ port = DEFAULT_PORT, host = DEFAULT_HOST, openInBrowser = true } = {}) {
+  server.listen(port, host, () => {
+    const origin = `http://${host}:${port}`;
+    console.log(`email-info UI running at ${origin}`);
+    if (openInBrowser) openBrowser(origin);
+  });
 
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') {
-    console.error(`port ${PORT} already in use; set PORT=<n> to pick another.`);
-  } else {
-    console.error(e.message);
-  }
-  process.exit(1);
-});
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`port ${port} already in use; set PORT=<n> to pick another.`);
+    } else {
+      console.error(e.message);
+    }
+    process.exit(1);
+  });
+}
+
+module.exports = { start };
+
+if (require.main === module) {
+  const noOpen = process.env.NO_OPEN === '1' || process.argv.includes('--no-open');
+  start({ openInBrowser: !noOpen });
+}

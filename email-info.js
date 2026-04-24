@@ -413,12 +413,17 @@ function renderText(r) {
 }
 
 function parseArgs(argv) {
-  const opts = { email: null, json: false, smtp: false, sender: 'probe@example.com', help: false };
+  const opts = {
+    email: null, json: false, smtp: false, sender: 'probe@example.com',
+    help: false, serve: false, noOpen: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') opts.help = true;
     else if (a === '--json') opts.json = true;
     else if (a === '--smtp') opts.smtp = true;
+    else if (a === '--serve' || a === '--ui') opts.serve = true;
+    else if (a === '--no-open') opts.noOpen = true;
     else if (a === '--sender') opts.sender = argv[++i];
     else if (a.startsWith('--sender=')) opts.sender = a.slice('--sender='.length);
     else if (!a.startsWith('-') && !opts.email) opts.email = a;
@@ -431,17 +436,20 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: email-info [options] <email>
-
-Gather recon info about an email address (authorized testing only).
+  console.log(`Usage:
+  email-info <email>              inspect a single address (CLI)
+  email-info --serve              launch the web UI on http://127.0.0.1:3000
 
 Options:
   --smtp            probe top MX with banner + RCPT TO + catch-all test
   --sender <addr>   MAIL FROM for the SMTP probe (default: probe@example.com)
   --json            emit JSON instead of text
+  --serve, --ui     start the web UI server
+  --no-open         don't auto-open the browser in --serve mode
   -h, --help        show this help
 
 Env:
+  PORT, HOST                  server bind (default: 127.0.0.1:3000)
   DOH=1                       force DNS-over-HTTPS for every lookup
   DOH_URL=<url>               DoH endpoint (default: https://dns.google/resolve)
   DNS_SERVERS=<csv>           override UDP DNS servers (e.g. 1.1.1.1,8.8.8.8)`);
@@ -449,9 +457,17 @@ Env:
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  if (!opts || opts.help || !opts.email) {
+  if (!opts || opts.help) {
     printHelp();
     process.exit(opts && opts.help ? 0 : 2);
+  }
+  if (opts.serve) {
+    require('./server.js').start({ openInBrowser: !opts.noOpen });
+    return;
+  }
+  if (!opts.email) {
+    printHelp();
+    process.exit(2);
   }
   const rep = await inspect(opts.email, { doSmtp: opts.smtp, sender: opts.sender });
   console.log(opts.json ? JSON.stringify(rep, null, 2) : renderText(rep));
