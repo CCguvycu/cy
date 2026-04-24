@@ -176,14 +176,22 @@
       flags.appendChild(badge(report.is_free_provider ? 'free provider' : 'custom domain', report.is_free_provider ? 'warn' : 'ok'));
       flags.appendChild(document.createTextNode(' '));
       flags.appendChild(badge(report.is_disposable ? 'disposable' : 'not disposable', report.is_disposable ? 'bad' : 'ok'));
+      flags.appendChild(document.createTextNode(' '));
+      flags.appendChild(badge(report.is_role_account ? 'role account' : 'personal', report.is_role_account ? 'warn' : 'ok'));
       summary.appendChild(row('flags', flags));
 
+      const gravWrap = document.createElement('span');
       const gravLink = document.createElement('a');
       gravLink.href = report.gravatar_url;
       gravLink.target = '_blank';
       gravLink.rel = 'noopener noreferrer';
-      gravLink.textContent = 'probe (opens in new tab)';
-      summary.appendChild(row('gravatar', gravLink));
+      gravLink.textContent = 'probe';
+      gravWrap.appendChild(gravLink);
+      gravWrap.appendChild(document.createTextNode('  '));
+      if (report.gravatar_exists === true) gravWrap.appendChild(badge('has avatar', 'ok'));
+      else if (report.gravatar_exists === false) gravWrap.appendChild(badge('no avatar', 'warn'));
+      else gravWrap.appendChild(badge('unknown', 'warn'));
+      summary.appendChild(row('gravatar', gravWrap));
       out.appendChild(summary);
 
       const dns = card('DNS');
@@ -200,29 +208,72 @@
       }
       dns.appendChild(row('MX', mxList));
       dns.appendChild(row('A', report.a_records.join(', ') || '(none)'));
+      if (report.aaaa_records && report.aaaa_records.length) {
+        dns.appendChild(row('AAAA', report.aaaa_records.join(', ')));
+      }
+      if (report.ns_records && report.ns_records.length) {
+        dns.appendChild(row('NS', report.ns_records.join(', ')));
+      }
       out.appendChild(dns);
 
       const auth = card('Email authentication');
-      const spfBadge = report.spf ? badge('present', 'ok') : badge('missing', 'warn');
       const spfWrap = document.createElement('span');
-      spfWrap.appendChild(spfBadge);
-      if (report.spf) { spfWrap.appendChild(document.createTextNode('  ' + report.spf)); }
+      spfWrap.appendChild(report.spf ? badge('present', 'ok') : badge('missing', 'warn'));
+      if (report.spf_summary && report.spf_summary.qualifier) {
+        spfWrap.appendChild(document.createTextNode(' '));
+        const q = report.spf_summary.qualifier;
+        const cls = q === '-all' ? 'ok' : (q === '~all' ? 'warn' : 'bad');
+        spfWrap.appendChild(badge(q, cls));
+      }
+      if (report.spf) { spfWrap.appendChild(document.createElement('br')); spfWrap.appendChild(document.createTextNode(report.spf)); }
       auth.appendChild(row('SPF', spfWrap));
 
-      const dmarcBadge = report.dmarc ? badge('present', 'ok') : badge('missing', 'warn');
       const dmarcWrap = document.createElement('span');
-      dmarcWrap.appendChild(dmarcBadge);
-      if (report.dmarc) { dmarcWrap.appendChild(document.createTextNode('  ' + report.dmarc)); }
+      dmarcWrap.appendChild(report.dmarc ? badge('present', 'ok') : badge('missing', 'warn'));
+      if (report.dmarc_summary && report.dmarc_summary.p) {
+        dmarcWrap.appendChild(document.createTextNode(' '));
+        const p = report.dmarc_summary.p;
+        const cls = p === 'reject' ? 'ok' : (p === 'quarantine' ? 'warn' : 'bad');
+        dmarcWrap.appendChild(badge('p=' + p, cls));
+      }
+      if (report.dmarc) { dmarcWrap.appendChild(document.createElement('br')); dmarcWrap.appendChild(document.createTextNode(report.dmarc)); }
       auth.appendChild(row('DMARC', dmarcWrap));
+
+      const bimiWrap = document.createElement('span');
+      bimiWrap.appendChild(report.bimi ? badge('present', 'ok') : badge('none', 'warn'));
+      if (report.bimi) { bimiWrap.appendChild(document.createTextNode('  ' + report.bimi)); }
+      auth.appendChild(row('BIMI', bimiWrap));
 
       auth.appendChild(row('MTA-STS', report.mta_sts ? badge('advertised', 'ok') : badge('none', 'warn')));
       out.appendChild(auth);
 
+      if (report.dkim_selectors && report.dkim_selectors.length) {
+        const dkim = card('DKIM selectors');
+        const ul = document.createElement('ul');
+        ul.className = 'list';
+        for (const s of report.dkim_selectors) {
+          const li = document.createElement('li');
+          li.textContent = `${s.selector}._domainkey  ${s.record.slice(0, 140)}${s.record.length > 140 ? '…' : ''}`;
+          ul.appendChild(li);
+        }
+        dkim.appendChild(ul);
+        out.appendChild(dkim);
+      }
+
       if (report.smtp_check) {
         const s = card('SMTP probe');
-        for (const [k, v] of Object.entries(report.smtp_check)) {
-          s.appendChild(row(k, v === null ? '(none)' : String(v)));
-        }
+        const sc = report.smtp_check;
+        if (sc.error) s.appendChild(row('error', sc.error));
+        if (sc.mx) s.appendChild(row('mx', sc.mx));
+        if (sc.banner) s.appendChild(row('banner', sc.banner));
+        s.appendChild(row('starttls', sc.starttls === null ? '(unknown)' : String(sc.starttls)));
+        if (sc.target) s.appendChild(row('target RCPT', `${sc.target.code}  deliverable=${sc.target.deliverable}  ${sc.target.message}`));
+        if (sc.random_probe) s.appendChild(row('random RCPT', `${sc.random_probe.code}  deliverable=${sc.random_probe.deliverable}  ${sc.random_probe.message}`));
+        const caWrap = document.createElement('span');
+        if (sc.catch_all === true) caWrap.appendChild(badge('catch-all', 'warn'));
+        else if (sc.catch_all === false) caWrap.appendChild(badge('not catch-all', 'ok'));
+        else caWrap.appendChild(badge('unknown', 'warn'));
+        s.appendChild(row('catch-all', caWrap));
         out.appendChild(s);
       }
 
