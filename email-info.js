@@ -13,7 +13,7 @@ const DOH_URL = process.env.DOH_URL || 'https://dns.google/resolve';
 const FORCE_DOH = process.env.DOH === '1';
 
 const EMAIL_RE =
-  /^(?<local>[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+)@(?<domain>(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})$/;
+  /^(?<local>[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*)@(?<domain>(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63})$/;
 
 const FREE_PROVIDERS = new Set([
   'gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'outlook.com',

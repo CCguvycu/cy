@@ -23,8 +23,9 @@ except ImportError:
     _HAVE_DNS = False
 
 
+_LOCAL_ATOM = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
 EMAIL_RE = re.compile(
-    r"^(?P<local>[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+)"
+    rf"^(?P<local>{_LOCAL_ATOM}(?:\.{_LOCAL_ATOM})*)"
     r"@(?P<domain>(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+"
     r"[A-Za-z]{2,63})$"
 )
