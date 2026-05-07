@@ -6,8 +6,10 @@
 
 const crypto = require('crypto');
 const dns = require('dns').promises;
+const fs = require('fs');
 const https = require('https');
 const net = require('net');
+const path = require('path');
 
 const DOH_URL = process.env.DOH_URL || 'https://dns.google/resolve';
 const FORCE_DOH = process.env.DOH === '1';
@@ -412,8 +414,156 @@ function renderText(r) {
   return lines.join('\n');
 }
 
+function renderObsidian(r) {
+  const date = new Date().toISOString();
+  const lines = [];
+
+  const tags = ['email-recon'];
+  if (r.domain) tags.push(`domain/${r.domain}`);
+  if (r.is_free_provider) tags.push('free-provider');
+  if (r.is_disposable) tags.push('disposable');
+  if (r.is_role_account) tags.push('role-account');
+
+  lines.push('---');
+  lines.push(`email: "${r.email}"`);
+  if (r.domain) lines.push(`domain: ${r.domain}`);
+  lines.push(`created: ${date}`);
+  lines.push(`valid_syntax: ${r.valid_syntax}`);
+  lines.push('tags:');
+  for (const tag of tags) lines.push(`  - ${tag}`);
+  lines.push('---');
+  lines.push('');
+  lines.push(`# ${r.email}`);
+  lines.push('');
+
+  if (!r.valid_syntax) {
+    lines.push('> [!warning] Invalid Syntax');
+    for (const e of r.errors) lines.push(`> ${e}`);
+    return lines.join('\n');
+  }
+
+  lines.push('## Classification');
+  lines.push('');
+  lines.push('| Field | Value |');
+  lines.push('|-------|-------|');
+  lines.push(`| Free Provider | ${r.is_free_provider} |`);
+  lines.push(`| Disposable | ${r.is_disposable} |`);
+  lines.push(`| Role Account | ${r.is_role_account} |`);
+  lines.push('');
+
+  lines.push('## Identity');
+  lines.push('');
+  const gravatarStatus = r.gravatar_exists === null ? 'unknown' : r.gravatar_exists;
+  lines.push(`- **Gravatar**: [avatar](${r.gravatar_url}) — exists: ${gravatarStatus}`);
+  lines.push('');
+
+  lines.push('## DNS Records');
+  lines.push('');
+  lines.push('### MX');
+  if (r.mx_records.length) {
+    for (const rec of r.mx_records) lines.push(`- ${rec}`);
+  } else {
+    lines.push('*(none)*');
+  }
+  lines.push('');
+  lines.push('### A');
+  if (r.a_records.length) {
+    for (const rec of r.a_records) lines.push(`- ${rec}`);
+  } else {
+    lines.push('*(none)*');
+  }
+  lines.push('');
+  if (r.aaaa_records && r.aaaa_records.length) {
+    lines.push('### AAAA');
+    for (const rec of r.aaaa_records) lines.push(`- ${rec}`);
+    lines.push('');
+  }
+  lines.push('### NS');
+  if (r.ns_records.length) {
+    for (const rec of r.ns_records) lines.push(`- ${rec}`);
+  } else {
+    lines.push('*(none)*');
+  }
+  lines.push('');
+
+  lines.push('## Email Authentication');
+  lines.push('');
+  lines.push('### SPF');
+  if (r.spf) {
+    lines.push('```');
+    lines.push(r.spf);
+    lines.push('```');
+    if (r.spf_summary) {
+      lines.push(`- **Policy**: ${r.spf_summary.qualifier || '(none)'}`);
+      if (r.spf_summary.includes.length) lines.push(`- **Includes**: ${r.spf_summary.includes.join(', ')}`);
+      if (r.spf_summary.ip4.length) lines.push(`- **IP4**: ${r.spf_summary.ip4.join(', ')}`);
+      if (r.spf_summary.ip6.length) lines.push(`- **IP6**: ${r.spf_summary.ip6.join(', ')}`);
+    }
+  } else {
+    lines.push('*(none)*');
+  }
+  lines.push('');
+  lines.push('### DMARC');
+  if (r.dmarc) {
+    lines.push('```');
+    lines.push(r.dmarc);
+    lines.push('```');
+    if (r.dmarc_summary) {
+      if (r.dmarc_summary.p) lines.push(`- **Policy**: ${r.dmarc_summary.p}`);
+      if (r.dmarc_summary.sp) lines.push(`- **Subdomain Policy**: ${r.dmarc_summary.sp}`);
+      if (r.dmarc_summary.pct) lines.push(`- **Percentage**: ${r.dmarc_summary.pct}%`);
+      if (r.dmarc_summary.rua) lines.push(`- **Report URI**: ${r.dmarc_summary.rua}`);
+    }
+  } else {
+    lines.push('*(none)*');
+  }
+  lines.push('');
+  lines.push('### DKIM');
+  if (r.dkim_selectors && r.dkim_selectors.length) {
+    for (const d of r.dkim_selectors) {
+      const rec = d.record.length > 80 ? `${d.record.slice(0, 80)}…` : d.record;
+      lines.push(`- **${d.selector}**: \`${rec}\``);
+    }
+  } else {
+    lines.push('*(none of the common selectors matched)*');
+  }
+  lines.push('');
+  lines.push('### BIMI');
+  lines.push(r.bimi || '*(none)*');
+  lines.push('');
+  lines.push('### MTA-STS');
+  lines.push(`${r.mta_sts}`);
+  lines.push('');
+
+  if (r.smtp_check) {
+    lines.push('## SMTP Probe');
+    lines.push('');
+    const s = r.smtp_check;
+    if (s.error) {
+      lines.push(`> [!warning] Error: ${s.error}`);
+    } else {
+      if (s.mx) lines.push(`- **MX**: ${s.mx}`);
+      if (s.banner) lines.push(`- **Banner**: ${s.banner}`);
+      lines.push(`- **STARTTLS**: ${s.starttls === null ? 'unknown' : s.starttls}`);
+      if (s.target) lines.push(`- **Deliverable**: ${s.target.deliverable} (${s.target.code} — ${s.target.message})`);
+      if (s.random_probe) lines.push(`- **Random probe**: ${s.random_probe.deliverable} (${s.random_probe.code} — ${s.random_probe.message})`);
+      lines.push(`- **Catch-all**: ${s.catch_all === null ? 'unknown' : s.catch_all}`);
+    }
+    lines.push('');
+  }
+
+  if (r.errors.length) {
+    lines.push('## Errors');
+    lines.push('');
+    for (const e of r.errors) lines.push(`- ${e}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 function parseArgs(argv) {
-  const opts = { email: null, json: false, smtp: false, sender: 'probe@example.com', help: false };
+  const opts = { email: null, json: false, smtp: false, sender: 'probe@example.com', obsidian: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') opts.help = true;
@@ -421,6 +571,10 @@ function parseArgs(argv) {
     else if (a === '--smtp') opts.smtp = true;
     else if (a === '--sender') opts.sender = argv[++i];
     else if (a.startsWith('--sender=')) opts.sender = a.slice('--sender='.length);
+    else if (a === '--obsidian') {
+      const next = argv[i + 1];
+      opts.obsidian = (next && !next.startsWith('-')) ? argv[++i] : '.';
+    } else if (a.startsWith('--obsidian=')) opts.obsidian = a.slice('--obsidian='.length);
     else if (!a.startsWith('-') && !opts.email) opts.email = a;
     else {
       console.error(`unknown argument: ${a}`);
@@ -439,6 +593,7 @@ Options:
   --smtp            probe top MX with banner + RCPT TO + catch-all test
   --sender <addr>   MAIL FROM for the SMTP probe (default: probe@example.com)
   --json            emit JSON instead of text
+  --obsidian [dir]  write a Markdown note to the given vault directory (default: .)
   -h, --help        show this help
 
 Env:
@@ -454,11 +609,17 @@ async function main() {
     process.exit(opts && opts.help ? 0 : 2);
   }
   const rep = await inspect(opts.email, { doSmtp: opts.smtp, sender: opts.sender });
+  if (opts.obsidian !== null) {
+    const filename = `${rep.email}.md`;
+    const dest = path.resolve(opts.obsidian, filename);
+    fs.writeFileSync(dest, renderObsidian(rep), 'utf8');
+    console.error(`note written to ${dest}`);
+  }
   console.log(opts.json ? JSON.stringify(rep, null, 2) : renderText(rep));
   process.exit(rep.valid_syntax ? 0 : 1);
 }
 
-module.exports = { inspect, renderText, FREE_PROVIDERS, DISPOSABLE_PROVIDERS, ROLE_ACCOUNTS };
+module.exports = { inspect, renderText, renderObsidian, FREE_PROVIDERS, DISPOSABLE_PROVIDERS, ROLE_ACCOUNTS };
 
 if (require.main === module) {
   main().catch((e) => {

@@ -8,11 +8,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import smtplib
 import socket
 import sys
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
 
 try:
@@ -187,6 +189,92 @@ def _render_text(rep: Report) -> str:
     return "\n".join(lines)
 
 
+def render_obsidian(rep: Report) -> str:
+    created = datetime.now(timezone.utc).isoformat()
+    lines: list[str] = []
+
+    tags = ["email-recon"]
+    if rep.domain:
+        tags.append(f"domain/{rep.domain}")
+    if rep.is_free_provider:
+        tags.append("free-provider")
+    if rep.is_disposable:
+        tags.append("disposable")
+
+    lines.append("---")
+    lines.append(f'email: "{rep.email}"')
+    if rep.domain:
+        lines.append(f"domain: {rep.domain}")
+    lines.append(f"created: {created}")
+    lines.append(f"valid_syntax: {str(rep.valid_syntax).lower()}")
+    lines.append("tags:")
+    for tag in tags:
+        lines.append(f"  - {tag}")
+    lines.append("---")
+    lines.append("")
+    lines.append(f"# {rep.email}")
+    lines.append("")
+
+    if not rep.valid_syntax:
+        lines.append("> [!warning] Invalid Syntax")
+        for e in rep.errors:
+            lines.append(f"> {e}")
+        return "\n".join(lines)
+
+    lines += [
+        "## Classification", "",
+        "| Field | Value |",
+        "|-------|-------|",
+        f"| Free Provider | {rep.is_free_provider} |",
+        f"| Disposable | {rep.is_disposable} |",
+        "",
+        "## Identity", "",
+        f"- **Gravatar**: [avatar]({rep.gravatar_url})",
+        "",
+        "## DNS Records", "",
+        "### MX",
+    ]
+    if rep.mx_records:
+        for rec in rep.mx_records:
+            lines.append(f"- {rec}")
+    else:
+        lines.append("*(none)*")
+    lines += ["", "### A"]
+    if rep.a_records:
+        for rec in rep.a_records:
+            lines.append(f"- {rec}")
+    else:
+        lines.append("*(none)*")
+    lines += ["", "## Email Authentication", "", "### SPF"]
+    if rep.spf:
+        lines += ["```", rep.spf, "```"]
+    else:
+        lines.append("*(none)*")
+    lines += ["", "### DMARC"]
+    if rep.dmarc:
+        lines += ["```", rep.dmarc, "```"]
+    else:
+        lines.append("*(none)*")
+    lines += ["", "### MTA-STS", str(rep.mta_sts), ""]
+
+    if rep.smtp_check is not None:
+        lines += ["## SMTP Probe", ""]
+        if "error" in rep.smtp_check:
+            lines.append(f"> [!warning] Error: {rep.smtp_check['error']}")
+        else:
+            for k, v in rep.smtp_check.items():
+                lines.append(f"- **{k}**: {v}")
+        lines.append("")
+
+    if rep.errors:
+        lines += ["## Errors", ""]
+        for e in rep.errors:
+            lines.append(f"- {e}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="email_info",
@@ -198,9 +286,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--sender", default="probe@example.com",
                    help="MAIL FROM address for the SMTP probe (default: probe@example.com)")
     p.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    p.add_argument(
+        "--obsidian", metavar="DIR", nargs="?", const=".",
+        help="write a Markdown note to the given vault directory (default: .)",
+    )
     args = p.parse_args(argv)
 
     rep = inspect(args.email, do_smtp=args.smtp, sender=args.sender)
+
+    if args.obsidian is not None:
+        filename = f"{rep.email}.md"
+        dest = os.path.join(os.path.abspath(args.obsidian), filename)
+        with open(dest, "w", encoding="utf-8") as fh:
+            fh.write(render_obsidian(rep))
+        print(f"note written to {dest}", file=sys.stderr)
 
     if args.json:
         print(json.dumps(asdict(rep), indent=2))
