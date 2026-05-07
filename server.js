@@ -12,7 +12,7 @@ const url = require('url');
 const { inspect } = require('./email-info.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 const NO_OPEN = process.env.NO_OPEN === '1' || process.argv.includes('--no-open');
 
 function openBrowser(target) {
@@ -42,10 +42,10 @@ function sendJson(res, status, body) {
   res.end(payload);
 }
 
-function serveUi(res) {
-  fs.readFile(UI_PATH, (err, data) => {
+function serveStatic(res, filePath) {
+  fs.readFile(filePath, (err, data) => {
     if (err) {
-      sendJson(res, 500, { error: 'UI missing' });
+      sendJson(res, 500, { error: 'file missing' });
       return;
     }
     res.writeHead(200, {
@@ -62,8 +62,15 @@ function serveUi(res) {
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
 
-  if (req.method === 'GET' && (parsed.pathname === '/' || parsed.pathname === '/index.html')) {
-    return serveUi(res);
+  const staticFiles = {
+    '/':              path.join(__dirname, 'email-info.html'),
+    '/index.html':    path.join(__dirname, 'index.html'),
+    '/setup.html':    path.join(__dirname, 'setup.html'),
+    '/email-info':    path.join(__dirname, 'email-info.html'),
+  };
+
+  if (req.method === 'GET' && staticFiles[parsed.pathname]) {
+    return serveStatic(res, staticFiles[parsed.pathname]);
   }
 
   if (req.method === 'GET' && parsed.pathname === '/api/inspect') {
