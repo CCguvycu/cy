@@ -13,8 +13,14 @@ if (-not (Test-Path $scriptPath)) {
     exit 1
 }
 
-# Event trigger: Microsoft-Windows-DisplaySwitch/Operational Event ID 131
-# fires whenever the display topology changes (monitor plugged in/out).
+# Enable the DisplaySwitch operational log (disabled by default on Windows).
+Write-Host "Enabling Microsoft-Windows-DisplaySwitch/Operational event log..."
+wevtutil sl "Microsoft-Windows-DisplaySwitch/Operational" /e:true
+if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Could not enable the DisplaySwitch event log. The task may not trigger automatically."
+}
+
+# Event trigger: fires whenever display topology changes (monitor plugged in/out).
 $eventQuery = @"
 <QueryList>
   <Query Id="0" Path="Microsoft-Windows-DisplaySwitch/Operational">
@@ -62,8 +68,11 @@ $taskXml = @"
 
 Register-ScheduledTask -TaskName $taskName -Xml $taskXml -Force | Out-Null
 
-Write-Host "Task '$taskName' registered successfully."
-Write-Host "Claude Code and Obsidian will now be placed automatically whenever you connect your big screen."
 Write-Host ""
-Write-Host "To remove it later, run:"
+Write-Host "Done. Task '$taskName' is registered."
+Write-Host "Claude Code -> small screen, Obsidian -> big screen, automatically on monitor connect."
+Write-Host ""
+Write-Host "A log file will be written to `$env:TEMP\place-windows.log each time the task runs."
+Write-Host ""
+Write-Host "To remove it later:"
 Write-Host "  Unregister-ScheduledTask -TaskName '$taskName' -Confirm:`$false"
