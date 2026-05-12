@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "VoidLink",
+    "slug": "voidlink",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.voidlink.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "VoidLink uses the microphone for voice input",
+        "NSCameraUsageDescription": "VoidLink uses the camera for QR code scanning",
+        "NSPhotoLibraryUsageDescription": "VoidLink accesses photos for image uploads"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.voidlink.app",
+      "versionCode": 1,
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#00ff88",
+          "defaultChannel": "voidlink"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow VoidLink to access your camera for QR scanning."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow VoidLink to access your microphone for voice input."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "voidlink"
+  }
+}

@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.sqlite
+*.db
+
+# Uploads
+backend/uploads/
+
+# Node
+node_modules/
+.expo/
+dist/
+web-build/
+.expo-shared/
+
+# Android
+mobile/android/
+mobile/.gradle/
+*.keystore
+*.jks
+
+# iOS
+mobile/ios/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace
+
+# Secrets
+*.pem
+*.key
+certs/
+docker/.env
+backend/.env
+
+# Misc
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp
+.nyc_output/
