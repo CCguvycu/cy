@@ -15,12 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.voidlink.app",
-      "buildNumber": "1",
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "VoidLink uses the microphone for voice input",
-        "NSCameraUsageDescription": "VoidLink uses the camera for QR code scanning",
-        "NSPhotoLibraryUsageDescription": "VoidLink accesses photos for image uploads"
-      }
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,14 +25,12 @@
       "package": "com.voidlink.app",
       "versionCode": 1,
       "permissions": [
-        "RECORD_AUDIO",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
@@ -48,29 +41,26 @@
       "expo-router",
       "expo-secure-store",
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#00ff88",
-          "defaultChannel": "voidlink"
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow VoidLink to access your camera for QR scanning."
-        }
-      ],
-      [
         "expo-av",
         {
           "microphonePermission": "Allow VoidLink to access your microphone for voice input."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow VoidLink to access your photos for image uploads."
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "scheme": "voidlink"
+    "scheme": "voidlink",
+    "extra": {
+      "eas": {
+        "projectId": "voidlink-app"
+      }
+    }
   }
 }
