@@ -13,7 +13,10 @@ const { inspect } = require('./email-info.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
-const NO_OPEN = process.env.NO_OPEN === '1' || process.argv.includes('--no-open');
+const NO_OPEN = process.env.NO_OPEN === '1'
+  || process.argv.includes('--no-open')
+  || (process.platform !== 'darwin' && process.platform !== 'win32'
+      && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY);
 
 function openBrowser(target) {
   const platform = process.platform;
