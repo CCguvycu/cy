@@ -710,22 +710,27 @@
   <!-- Stream Sites -->
   <div id="page-sites" class="page">
     <div class="section-header">
-      <div class="section-title">Free Streaming Sites</div>
-      <span style="font-size:0.8rem;color:var(--muted)">Sourced from FMHY</span>
+      <div class="section-title">Resources from FMHY</div>
+      <a href="https://fmhy.net" target="_blank" rel="noopener" style="font-size:0.8rem;color:var(--accent2);text-decoration:none">fmhy.net ↗</a>
     </div>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;line-height:1.6">
-      These sites are community-vetted on <a href="https://fmhy.net/video" target="_blank" rel="noopener" style="color:var(--accent2)">FMHY</a>.
-      Always use an ad-blocker (uBlock Origin). Content availability varies by region.
+    <p style="color:var(--muted);font-size:0.83rem;margin-bottom:16px;line-height:1.6">
+      Community-vetted on <a href="https://fmhy.net/video" target="_blank" rel="noopener" style="color:var(--accent2)">FMHY</a>.
+      Use uBlock Origin. Content availability varies by region.
     </p>
 
-    <div class="section-title" style="margin-bottom:14px;font-size:1rem">🌐 Web Streaming</div>
-    <div class="sites-grid" id="sites-web"></div>
+    <div class="filter-bar" id="sites-filter-bar">
+      <button class="filter-btn active" onclick="filterSites('streaming', this)">🌐 Streaming</button>
+      <button class="filter-btn" onclick="filterSites('multi', this)">🎬 Multi-content</button>
+      <button class="filter-btn" onclick="filterSites('desktop', this)">💻 Desktop Apps</button>
+      <button class="filter-btn" onclick="filterSites('download', this)">📥 Downloads</button>
+      <button class="filter-btn" onclick="filterSites('torrent', this)">🌿 Torrents</button>
+      <button class="filter-btn" onclick="filterSites('manga', this)">📚 Manga</button>
+      <button class="filter-btn" onclick="filterSites('novels', this)">📖 Light Novels</button>
+      <button class="filter-btn" onclick="filterSites('tracking', this)">📊 Tracking</button>
+      <button class="filter-btn" onclick="filterSites('index', this)">🗂 Indexes</button>
+    </div>
 
-    <div class="section-title" style="margin-bottom:14px;font-size:1rem">💻 Desktop Apps</div>
-    <div class="sites-grid" id="sites-desktop"></div>
-
-    <div class="section-title" style="margin-bottom:14px;font-size:1rem">🗂 Anime Indexes</div>
-    <div class="sites-grid" id="sites-index"></div>
+    <div id="sites-container" class="sites-grid"></div>
   </div>
 
 </main>
@@ -753,36 +758,119 @@
 </div>
 
 <script>
-  // ── FMHY streaming sites data ──
-  const WEB_SITES = [
-    { name: 'Miruro', url: 'https://www.miruro.tv', icon: '🎬', desc: 'Clean UI with hard subs, dub support, and auto-next. Multiple mirror domains.', features: ['Sub', 'Dub', 'Auto-next', 'No login'] },
-    { name: 'animepahe', url: 'https://animepahe.ru', icon: '🌸', desc: 'Small file sizes, great quality. Sub & dub. Has a dedicated downloader tool.', features: ['Sub', 'Dub', 'Low bandwidth', 'Downloader'] },
-    { name: 'KickAssAnime', url: 'https://kickassanime.am', icon: '⚡', desc: 'Fast streams with sub/dub, auto-next, and watch status tracking.', features: ['Sub', 'Dub', 'Auto-next', 'Tracking'] },
-    { name: 'Animetsu', url: 'https://animetsu.to', icon: '🎌', desc: 'Multi-domain anime streaming with sub and dub options.', features: ['Sub', 'Dub', 'Multi-domain'] },
-    { name: 'AnimeX', url: 'https://animex.to', icon: '✨', desc: 'Sub & dub streams with auto-next functionality.', features: ['Sub', 'Dub', 'Auto-next'] },
-    { name: 'All Manga', url: 'https://allmanga.to', icon: '📖', desc: 'Covers both anime streaming and manga reading. Active community discord.', features: ['Sub', 'Dub', 'Manga', 'Community'] },
-  ];
-
-  const DESKTOP_APPS = [
-    { name: 'Seanime', url: 'https://seanime.rahim.app', icon: '🖥️', desc: 'Feature-rich desktop app with extension support, tracking, and torrent integration.', features: ['Extensions', 'Tracking', 'Torrent', 'Open source'] },
-    { name: 'AnymeX', url: 'https://github.com/RyanYuuki/AnymeX', icon: '🎮', desc: 'Extension-based desktop streaming app. Supports multiple sources.', features: ['Extensions', 'Multi-source', 'Open source'] },
-    { name: 'Miru', url: 'https://miru.watch', icon: '👁️', desc: 'BitTorrent-based anime streaming app. Watch torrents like regular streaming.', features: ['Torrent', 'Extensions', 'Open source'] },
-    { name: 'Anikin', url: 'https://github.com/anikinapp/anikin', icon: '🎭', desc: 'Clean desktop streaming application with Discord community support.', features: ['Desktop', 'Community'] },
-  ];
-
-  const INDEX_SITES = [
-    { name: 'Wotaku', url: 'https://wotaku.wiki', icon: '📚', desc: 'Comprehensive anime, manga, and Japan-culture wiki. Excellent starting point for new fans.', features: ['Wiki', 'Tools', 'Community'] },
-    { name: 'The Index', url: 'https://theindex.moe', icon: '🗂', desc: 'Community-maintained index of anime sites, apps, and tools. The definitive resource.', features: ['Sites', 'Apps', 'Tools'] },
-    { name: 'EverythingMoe', url: 'https://everythingmoe.com', icon: '🌙', desc: 'Wide-ranging anime site index covering streaming, downloading, and community tools.', features: ['Index', 'Multi-domain'] },
-  ];
+  // ── FMHY sites database ──
+  const SITES = {
+    streaming: [
+      { name: 'Miruro', url: 'https://www.miruro.tv', icon: '🎬', desc: 'Clean UI, hard subs, dub support and auto-next. Multiple mirror domains available.', features: ['Sub', 'Dub', 'Auto-next', 'No login'] },
+      { name: 'animepahe', url: 'https://animepahe.ru', icon: '🌸', desc: 'Small file sizes with great quality. Sub & dub. Comes with a dedicated downloader.', features: ['Sub', 'Dub', 'Low bandwidth', 'Downloader'] },
+      { name: 'KickAssAnime', url: 'https://kaa.to', icon: '⚡', desc: 'Fast streams with sub/dub, auto-next, and watch status tracking.', features: ['Sub', 'Dub', 'Auto-next', 'Tracking'] },
+      { name: 'All Manga', url: 'https://allmanga.to', icon: '📖', desc: 'Anime streaming + manga reading in one place. Active Discord community.', features: ['Sub', 'Dub', 'Manga', 'Community'] },
+      { name: 'Animetsu', url: 'https://animetsu.to', icon: '🎌', desc: 'Multi-domain anime streaming with sub and dub options and auto-next.', features: ['Sub', 'Dub', 'Auto-next', 'Multi-domain'] },
+      { name: 'AnimeX', url: 'https://animex.one', icon: '✨', desc: 'Sub & dub streams with auto-next functionality.', features: ['Sub', 'Dub', 'Auto-next'] },
+      { name: 'Anidap', url: 'https://anidap.se', icon: '🌊', desc: 'Sub/dub streaming with auto-next and a community Discord server.', features: ['Sub', 'Dub', 'Auto-next'] },
+      { name: 'Yenime', url: 'https://yenime.net', icon: '🦊', desc: 'Sub and dub anime streaming with an active Discord community.', features: ['Sub', 'Dub', 'Community'] },
+      { name: 'Anify', url: 'https://anify.to', icon: '🔮', desc: 'Sub/dub anime aggregator with multi-source playback.', features: ['Sub', 'Dub', 'Multi-source'] },
+      { name: '123anime', url: 'https://123animes.ru', icon: '🌀', desc: 'Sub/dub streaming with auto-next functionality.', features: ['Sub', 'Dub', 'Auto-next'] },
+      { name: 'Re:ANIME', url: 'https://reanime.to', icon: '🔁', desc: 'Sub/dub with auto-next and a mirror backup domain.', features: ['Sub', 'Dub', 'Auto-next'] },
+      { name: 'AniKuro', url: 'https://anikuro.to', icon: '🖤', desc: 'Sub/dub with status tracking, mirrors, and community.', features: ['Sub', 'Dub', 'Tracking'] },
+      { name: 'AnimeHub', url: 'https://animehub.ac', icon: '🛰️', desc: 'Sub/dub with auto-next. Reliable streaming platform.', features: ['Sub', 'Dub', 'Auto-next'] },
+      { name: 'Rive', url: 'https://rivestream.app', icon: '🌊', desc: 'Multi-mirror anime platform with sub/dub and auto-next.', features: ['Sub', 'Dub', 'Auto-next', 'Multi-mirror'] },
+      { name: 'AnimeThemes', url: 'https://animethemes.moe', icon: '🎵', desc: 'Watch all anime openings and endings in one place.', features: ['OP/ED', 'No login'] },
+      { name: 'Kara.moe', url: 'https://kara.moe', icon: '🎤', desc: 'Karaoke-style anime themes aggregator with lyrics.', features: ['Themes', 'Lyrics'] },
+    ],
+    multi: [
+      { name: 'Cineby', url: 'https://cineby.sc', icon: '🎥', desc: 'Movies, TV, and anime all in one with auto-next.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'XPrime', url: 'https://xprime.su', icon: '🌟', desc: 'Multi-content streaming with auto-next support.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'Filmex', url: 'https://filmex.to', icon: '🎞️', desc: 'Movies, TV, and anime with auto-next and 4K quality.', features: ['Movies', 'TV', 'Anime', '4K', 'Auto-next'] },
+      { name: 'Flixer', url: 'https://flixer.su', icon: '🍿', desc: 'Stream aggregator for movies, TV, and anime.', features: ['Movies', 'TV', 'Anime'] },
+      { name: 'HydraHD', url: 'https://hydrahd.com', icon: '🐉', desc: 'Movies, TV, and anime with auto-next. Mirror available.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'CinemaOS', url: 'https://cinemaos.live', icon: '🖥️', desc: 'Multi-content with auto-next and multiple mirrors.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'PopcornMovies', url: 'https://popcornmovies.org', icon: '🍿', desc: 'Movies, TV, and anime streaming with auto-next.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'Anixtv', url: 'https://anixtv.us.cc', icon: '📡', desc: 'Movies, TV, and anime with auto-next.', features: ['Movies', 'TV', 'Anime', 'Auto-next'] },
+      { name: 'mov-cli', url: 'https://mov-cli.github.io', icon: '💻', desc: 'Terminal streaming CLI for movies, TV, and anime. Extensible with plugins.', features: ['CLI', 'Movies', 'TV', 'Anime', 'Open source'] },
+    ],
+    desktop: [
+      { name: 'Seanime', url: 'https://seanime.app', icon: '🖥️', desc: 'Feature-rich desktop app with extensions, MAL/AniList tracking, and torrent integration.', features: ['Extensions', 'Tracking', 'Torrent', 'Open source'] },
+      { name: 'AnymeX', url: 'https://github.com/RyanYuuki/AnymeX', icon: '🎮', desc: 'Extension-based desktop streaming supporting multiple anime sources.', features: ['Extensions', 'Multi-source', 'Open source'] },
+      { name: 'Miru', url: 'https://miru.watch', icon: '👁️', desc: 'BitTorrent-based anime player. Watch torrents like a streaming app.', features: ['Torrent', 'Extensions', 'Open source'] },
+      { name: 'Anikin', url: 'https://github.com/jerry08/Anikin', icon: '🎭', desc: 'Clean desktop streaming client with Discord community.', features: ['Desktop', 'Community'] },
+      { name: 'Unyo', url: 'https://github.com/K3vinb5/Unyo', icon: '🌸', desc: 'Desktop anime streaming application on GitHub.', features: ['Desktop', 'Open source'] },
+      { name: 'Hayase', url: 'https://hayase.watch', icon: '⚡', desc: 'Torrent streaming app for anime with extension support.', features: ['Torrent', 'Extensions'] },
+      { name: 'PlayTorrio', url: 'https://playtorrio.xyz', icon: '▶️', desc: 'Multi-source desktop streaming with torrent support and an extension system.', features: ['Torrent', 'Extensions', 'Desktop'] },
+      { name: 'Stremio', url: 'https://stremio.com', icon: '📺', desc: 'Popular media center with anime addons. Supports Torrentio and more.', features: ['Addons', 'Torrent', 'Desktop/TV'] },
+      { name: 'CloudStream', url: 'https://github.com/recloudstream/cloudstream', icon: '☁️', desc: 'Android app for streaming anime, movies, and TV from multiple providers.', features: ['Android', 'Multi-source', 'Open source'] },
+    ],
+    download: [
+      { name: 'Tokyo Insider', url: 'https://tokyoinsider.com', icon: '🗼', desc: 'Direct download anime with sub and dub. Includes a bulk downloader.', features: ['Sub', 'Dub', 'Bulk download'] },
+      { name: 'hi10anime', url: 'https://hi10anime.com', icon: '🔟', desc: 'High-quality 10-bit encoded anime downloads. Sign-up required.', features: ['Sub', '10-bit', 'Sign-up'] },
+      { name: 'AniDL', url: 'https://new.anidl.org', icon: '📦', desc: 'Sub/dub direct download with Discord community.', features: ['Sub', 'Dub', 'DDL', 'Community'] },
+      { name: 'AnimeDDL', url: 'https://animeddl.xyz', icon: '⬇️', desc: 'Direct download for sub and dub anime.', features: ['Sub', 'Dub', 'DDL'] },
+      { name: 'anime7.download', url: 'https://anime7.download', icon: '7️⃣', desc: 'Sub-focused direct download site.', features: ['Sub', 'DDL'] },
+      { name: 'AnimeOut', url: 'https://animeout.xyz', icon: '📤', desc: 'Sub direct downloads. Sign-up required.', features: ['Sub', 'DDL', 'Sign-up'] },
+      { name: 'Kayoanime', url: 'https://kayoanime.com', icon: '🌺', desc: 'Sub/dub DDL via Google Drive. Requires a Google account.', features: ['Sub', 'Dub', 'Google Drive'] },
+      { name: 'Meow (Nyaa bot)', url: 'https://github.com/wotakumoe/meow', icon: '🐱', desc: 'Batch downloader for Nyaa.si. Also available as a Telegram bot.', features: ['Nyaa', 'Batch', 'Telegram'] },
+    ],
+    torrent: [
+      { name: 'Nyaa', url: 'https://nyaa.si', icon: '🐈', desc: 'The definitive anime torrent tracker. Sub and dub. Multiple mirrors available.', features: ['Sub', 'Dub', 'Tracker', 'Mirrors'] },
+      { name: 'nekoBT', url: 'https://nekobt.to', icon: '🐾', desc: 'Sub/dub anime torrents — good Nyaa alternative.', features: ['Sub', 'Dub', 'Tracker'] },
+      { name: 'TokyoTosho', url: 'https://tokyotosho.info', icon: '🗼', desc: 'Long-running anime & manga torrent index.', features: ['Sub', 'Tracker'] },
+      { name: 'BakaBT', url: 'https://bakabt.me', icon: '📼', desc: 'Sub/dub torrents. Includes interviews with fansubbers.', features: ['Sub', 'Dub', 'Community'] },
+      { name: 'ShanaProject', url: 'https://shanaproject.com', icon: '🔥', desc: 'Track ongoing fansub projects and their torrent releases.', features: ['Sub', 'Project tracker'] },
+      { name: 'SeaDex', url: 'https://releases.moe', icon: '🦈', desc: 'Guides on the best video quality releases for specific anime titles.', features: ['Quality guide', 'Releases'] },
+      { name: 'Nyaa TUI', url: 'https://github.com/Beastwick18/nyaa', icon: '🖥️', desc: 'Terminal UI for browsing and downloading from Nyaa.si.', features: ['CLI', 'Nyaa', 'Open source'] },
+    ],
+    manga: [
+      { name: 'MangaDex', url: 'https://mangadex.org', icon: '📗', desc: 'The largest community-driven manga database. Free downloads, multiple languages.', features: ['Free', 'Multi-lang', 'Download', 'Community'] },
+      { name: 'Weeb Central', url: 'https://weebcentral.com', icon: '🌀', desc: 'Manga reader. Requires an adblocker for best experience.', features: ['Free', 'Adblocker recommended'] },
+      { name: 'MangaFire', url: 'https://mangafire.to', icon: '🔥', desc: 'Popular manga reading platform with an active community.', features: ['Free', 'Community'] },
+      { name: 'Comix', url: 'https://comix.to', icon: '💬', desc: 'Manga reader with Reddit and Discord communities.', features: ['Free', 'Community'] },
+      { name: 'MangaNato', url: 'https://www.manganato.gg', icon: '🌿', desc: 'Large manga library with multiple mirrors.', features: ['Free', 'Multi-mirror'] },
+      { name: 'All Manga', url: 'https://allmanga.to', icon: '📖', desc: 'Manga + anime streaming combined. Comprehensive library.', features: ['Free', 'Anime', 'Community'] },
+      { name: 'Toonily', url: 'https://toonily.com', icon: '🎭', desc: 'Manhwa-focused reader. Some adult content present.', features: ['Manhwa', 'Free'] },
+      { name: 'Webtoon', url: 'https://webtoons.com', icon: '📱', desc: 'Official manhwa platform. Free with a large library.', features: ['Official', 'Manhwa', 'Free'] },
+      { name: 'Cubari Proxy', url: 'https://proxy.cubari.moe', icon: '🔷', desc: 'Multi-site web client for reading manga across sources.', features: ['Multi-source', 'Privacy'] },
+      { name: 'YACReader', url: 'https://yacreader.com', icon: '📕', desc: 'Professional offline manga/comic reader and library manager.', features: ['Offline', 'Library', 'Desktop'] },
+      { name: 'Komga', url: 'https://komga.org', icon: '🗄️', desc: 'Self-hosted manga/comic media server. Accessible in browser.', features: ['Self-hosted', 'Server', 'Open source'] },
+    ],
+    novels: [
+      { name: 'NovelFire', url: 'https://novelfire.net', icon: '🔥', desc: 'Online light novel reading platform with a large library.', features: ['Free', 'Large library'] },
+      { name: 'Light Novel World', url: 'https://lightnovelworld.org', icon: '🌍', desc: 'Comprehensive light novel reader with many titles.', features: ['Free', 'Multi-genre'] },
+      { name: 'WuxiaWorld', url: 'https://wuxiaworld.com', icon: '⚔️', desc: 'Official wuxia and cultivation novel platform.', features: ['Official', 'Wuxia', 'Some free'] },
+      { name: 'Royal Road', url: 'https://royalroad.com', icon: '👑', desc: 'Community platform for original web fiction and light novels.', features: ['Original', 'Community', 'Free'] },
+      { name: 'Scribblehub', url: 'https://scribblehub.com', icon: '✍️', desc: 'Creative fiction community with novels and web serials.', features: ['Original', 'Community', 'Free'] },
+      { name: 'Novel Updates', url: 'https://novelupdates.com', icon: '📋', desc: 'Tracking database for translated light novels and web novels.', features: ['Tracking', 'Database', 'Translations'] },
+      { name: 'Baka-Tsuki', url: 'https://baka-tsuki.org', icon: '📗', desc: 'Classic fan translation platform for light novels.', features: ['Fan TL', 'Free', 'Old titles'] },
+      { name: 'Lightnovel Crawler', url: 'https://github.com/dipu-bd/lightnovel-crawler', icon: '🕷️', desc: 'Python tool to download light novels from 300+ sources.', features: ['Downloader', 'Multi-source', 'Open source'] },
+    ],
+    tracking: [
+      { name: 'MyAnimeList', url: 'https://myanimelist.net', icon: '📋', desc: 'The largest anime and manga tracking site. Ratings, reviews, and community lists.', features: ['Anime', 'Manga', 'Community', 'Reviews'] },
+      { name: 'AniList', url: 'https://anilist.co', icon: '📊', desc: 'Modern anime/manga tracker with sleek UI and detailed stats.', features: ['Anime', 'Manga', 'Stats', 'API'] },
+      { name: 'Anime-Planet', url: 'https://anime-planet.com', icon: '🪐', desc: 'Anime and manga database with recommendations.', features: ['Anime', 'Manga', 'Recommendations'] },
+      { name: 'Kitsu', url: 'https://kitsu.io', icon: '🐱', desc: 'Social anime and manga tracking with a community feed.', features: ['Anime', 'Manga', 'Social'] },
+      { name: 'AniDB', url: 'https://anidb.net', icon: '🗃️', desc: 'Deep technical anime database — release groups, staff, checksums.', features: ['Database', 'Technical'] },
+      { name: 'Taiga', url: 'https://taiga.moe', icon: '🐯', desc: 'Desktop app that auto-detects what you\'re watching and updates your MAL/AniList.', features: ['Desktop', 'Auto-detect', 'Open source'] },
+      { name: 'MangaUpdates', url: 'https://mangaupdates.com', icon: '📰', desc: 'Release tracker for manga chapters and scanlation groups.', features: ['Manga', 'Releases', 'Groups'] },
+      { name: 'Novel Updates', url: 'https://novelupdates.com', icon: '📚', desc: 'Track translated light novels and web novel releases.', features: ['LN', 'Web novels', 'TL tracker'] },
+    ],
+    index: [
+      { name: 'Wotaku', url: 'https://wotaku.wiki', icon: '📚', desc: 'The most comprehensive anime/manga/LN wiki. Best starting point for any fan.', features: ['Wiki', 'Guides', 'Community'] },
+      { name: 'The Index', url: 'https://theindex.moe', icon: '🗂', desc: 'Definitive community-maintained index of anime sites, apps, and tools.', features: ['Sites', 'Apps', 'Tools'] },
+      { name: 'EverythingMoe', url: 'https://everythingmoe.com', icon: '🌙', desc: 'Wide-ranging index covering streaming, manga, drama, novels, and more.', features: ['Multi-category', 'Index'] },
+      { name: 'The Piracy Wiki', url: 'https://thewiki.moe', icon: '🏴', desc: 'r/Animepiracy\'s official wiki — guides, site status, and quality comparisons.', features: ['Wiki', 'Guides', 'Status'] },
+      { name: 'Awesome ACG', url: 'https://github.com/soruly/awesome-acg', icon: '⭐', desc: 'Curated GitHub list of anime, comic, and game tools and libraries.', features: ['Tools', 'Dev', 'Curated'] },
+      { name: 'Fansub Cartel', url: 'https://fansubcar.tel', icon: '🎙️', desc: 'Directory of active fansubbers and their current projects.', features: ['Fansubs', 'Directory'] },
+    ],
+  };
 
   // ── Stream buttons shown in modal ──
   const STREAM_BTNS = [
-    { name: 'Miruro', url: 'https://www.miruro.tv/search?query=', icon: '🎬', search: true },
-    { name: 'animepahe', url: 'https://animepahe.ru/anime/', icon: '🌸', search: false },
-    { name: 'KickAssAnime', url: 'https://kickassanime.am/anime/', icon: '⚡', search: false },
-    { name: 'Animetsu', url: 'https://animetsu.to/search?keyword=', icon: '🎌', search: true },
-    { name: 'AnimeX', url: 'https://animex.to/search?q=', icon: '✨', search: true },
+    { name: 'Miruro', url: 'https://www.miruro.tv/search?query=', icon: '🎬' },
+    { name: 'animepahe', url: 'https://animepahe.ru/search?q=', icon: '🌸' },
+    { name: 'KickAssAnime', url: 'https://kaa.to/search?query=', icon: '⚡' },
+    { name: 'All Manga', url: 'https://allmanga.to/anime?name=', icon: '📖' },
+    { name: 'Anify', url: 'https://anify.to/anime?query=', icon: '🔮' },
+    { name: 'AnimeHub', url: 'https://animehub.ac/search?keyword=', icon: '🛰️' },
+    { name: 'Cineby', url: 'https://cineby.sc/search?query=', icon: '🎥' },
   ];
 
   // ── State ──
@@ -949,14 +1037,22 @@
   }
 
   // ── Sites ──
-  function renderSiteCard(s, type) {
+  const SITE_CATEGORY_LABELS = {
+    streaming: 'Web Streaming', multi: 'Multi-content', desktop: 'Desktop App',
+    download: 'Downloads', torrent: 'Torrents', manga: 'Manga',
+    novels: 'Light Novels', tracking: 'Tracking', index: 'Index',
+  };
+
+  let currentSiteFilter = 'streaming';
+
+  function renderSiteCard(s, cat) {
     return `
       <a class="site-card" href="${s.url}" target="_blank" rel="noopener noreferrer">
         <div class="site-card-header">
           <div class="site-icon">${s.icon}</div>
           <div>
             <div class="site-name">${s.name}</div>
-            <span class="site-type">${type}</span>
+            <span class="site-type">${SITE_CATEGORY_LABELS[cat] || cat}</span>
           </div>
         </div>
         <div class="site-desc">${s.desc}</div>
@@ -964,10 +1060,20 @@
       </a>`;
   }
 
+  function filterSites(cat, btn) {
+    currentSiteFilter = cat;
+    document.querySelectorAll('#sites-filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderSiteCategory(cat);
+  }
+
+  function renderSiteCategory(cat) {
+    const list = SITES[cat] || [];
+    document.getElementById('sites-container').innerHTML = list.map(s => renderSiteCard(s, cat)).join('');
+  }
+
   function renderSites() {
-    document.getElementById('sites-web').innerHTML = WEB_SITES.map(s => renderSiteCard(s, 'Web')).join('');
-    document.getElementById('sites-desktop').innerHTML = DESKTOP_APPS.map(s => renderSiteCard(s, 'Desktop App')).join('');
-    document.getElementById('sites-index').innerHTML = INDEX_SITES.map(s => renderSiteCard(s, 'Index')).join('');
+    renderSiteCategory(currentSiteFilter);
   }
 
   // ── Modal ──
